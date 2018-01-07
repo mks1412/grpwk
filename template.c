@@ -6,6 +6,8 @@
 #include <time.h>
 #include <limits.h>
 #include "global.h"
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MAX3(a, b, c) ((a) > (MAX(b, c)) ? (a) : (MAX(b, c)))
 #define BM_TABLE_SIZE 256
 #define PRM 7
 
@@ -25,6 +27,12 @@ typedef struct {
 char tmpT[T_LEN+1], tmpS[S_SIZE][S_LEN+1], tmpR[T_LEN+1];
 Datum Tp, S[S_SIZE], R;
 Counter cntTp = {0,0,0}, cntR = {0,0,0};
+
+typedef struct {
+  int a[T_LEN];
+  int b[T_LEN];
+  int c[T_LEN];
+} Map;
 
 
 int main(int argc, char** argv){
@@ -185,8 +193,10 @@ int bm_search(const char *text, const char *pattern)
 
 int main_prg(int argc, char** argv){
   /** implement here  **/
-  int i, j, k, cp = -1, cnt = 0;
-  char pattern[S_LEN];
+  int i, j, k, cp = -1, max, maxId, index = 0, scoreA, scoreB, scoreC;
+  char pattern[PRM+1];
+  char* text;
+  Map m = {{0}, {0}, {0}};
   FILE* ifp;
   FILE* ofp;
 
@@ -196,6 +206,7 @@ int main_prg(int argc, char** argv){
     exit(1);
   }
 
+  /* ファイルからデータ入力 */
   if((ifp = fopen(argv[1], "r")) == NULL) {
     fprintf(stderr, "failed to open file \"%s\", in read_data.", argv[1]);
     exit(1);
@@ -212,66 +223,70 @@ int main_prg(int argc, char** argv){
 
   R.s = tmpR;
   for(i = 0; i < Tp.l; i++) {
-    if(Tp.s[i] == 'a') cntTp.a++;
-    else if(Tp.s[i] == 'b') cntTp.b++;
-    else cntTp.c++;
     R.s[i] = 'x';
   }
+
   for(i = 0; i < S_SIZE; i++) {
-    /* bitapによるマッピング */
-    cp = bitap_search(Tp.s, S[i].s, 5);
-    if(cp != -1) {
-      for(j = 0; j < S_LEN; j++) {
-        R.s[cp + j] = S[i].s[j];
-        Tp.s[cp + j] = 'x';
-      }
-    }
-  }
-  cp = -1;
-  for(i = 0; i < S_SIZE; i++) {
-    /* BM法によるマッピング */
-    for(j = 0; j < S_LEN-PRM; j++) {
+    for(j = 0; j < S_LEN-PRM+1; j++) {
+      /* bitapによるマッピング */
       strncpy(pattern, S[i].s + j, PRM);
-      cp = bm_search(Tp.s, pattern);
-      if(cp == -1) continue;
-      for(k = 0; k < PRM; k++) {
-        R.s[cp + k] = pattern[k];
-        Tp.s[cp + k] = 'x';
+      text = Tp.s;
+      index = 0;
+      while(1) {
+        cp = bitap_search(text, pattern, 0);
+        if(cp == -1) break;
+        text = text + cp + PRM;
+        if(index == 0) index += cp;
+        else index += cp + PRM;
+        for(k = 0; k < PRM; k++) {
+          if(pattern[k] == 'a') m.a[index]++;
+          else if(pattern[k] == 'b') m.b[index]++;
+          else m.c[index]++;
+        }
       }
-      break;
-     }
-    // if(i % 1000 == 0) printf("%3d％\n", i/200);
-  }
-
-  printf("%s\n", R.s);
-
-  for(i = 0; i < Tp.l; i++) {
-    if(R.s[i] == 'a') cntR.a++;
-    else if(R.s[i] == 'b') cntR.b++;
-    else if(R.s[i] == 'c') cntR.c++;
-    else {
-      cnt++;
-      R.s[i] = Tp.s[i];
     }
   }
+
+  FILE* testfp;
+  testfp = fopen("dat/dat0_tmp", "w");
+  for(i = 0; i < Tp.l; i++) fprintf(testfp, "%d ", m.a[i]);
+  fprintf(testfp, "\n");
+  for(i = 0; i < Tp.l; i++) fprintf(testfp, "%d ", m.b[i]);
+  fprintf(testfp, "\n");
+  for(i = 0; i < Tp.l; i++) fprintf(testfp, "%d ", m.c[i]);
+  fprintf(testfp, "\n");
+  fclose(testfp);
 
   if((ofp = fopen(argv[2], "w")) == NULL) {
     fprintf(stderr, "failed to open file \"%s\", in read_data.", argv[2]);
     exit(1);
   }
-  fprintf(ofp, "%s\n", R.s);
+  for(i = 0; i < Tp.l; i++) {
+    maxId = 0;
+    if(i >= 1 && i <= Tp.l-2) {
+      scoreA = m.a[i-1]*2 + m.a[i]*3 + m.a[i+1]*2;
+      scoreB = m.b[i-1]*2 + m.b[i]*3 + m.b[i+1]*2;
+      scoreC = m.c[i-1]*2 + m.c[i]*3 + m.c[i+1]*2;
+    } else {
+      scoreA = m.a[i];
+      scoreB = m.b[i];
+      scoreC = m.c[i];
+    }
+    max = scoreA;
+    if(max < scoreB) {
+      maxId = 1;
+      max = scoreB;
+    }
+    if(max < scoreC) maxId = 2;
+    fprintf(ofp, "%c", 'a' + maxId);
+  }
+  fprintf(ofp, "\n");
   fclose(ofp);
-
-  printf("length of T' is %d\n", Tp.l);
-  printf("T' contents\n");
-  printf("a: %5d\n", cntTp.a);
-  printf("b: %5d\n", cntTp.b);
-  printf("c: %5d\n", cntTp.c);
-  printf("R contents\n");
-  printf("a: %5d\n", cntR.a);
-  printf("b: %5d\n", cntR.b);
-  printf("c: %5d\n", cntR.c);
-  printf("x: %5d\n", cnt);
-  printf("Match: %.3f％\n", (Tp.l-cnt)/(double)Tp.l * 100);
+  // printf("R contents\n");
+  // printf("a: %5d\n", cntR.a);
+  // printf("b: %5d\n", cntR.b);
+  // printf("c: %5d\n", cntR.c);
+  // printf("x: %5d\n", cnt);
+  // printf("Match: %.3f％\n", (Tp.l-cnt)/(double)Tp.l * 100);
   return 0;
 }
