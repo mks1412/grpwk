@@ -7,8 +7,6 @@
 #include <limits.h>
 #include "global.h"
 #include "bitap.h"
-#define PRM 15
-
 
 int main_prg(int, char**);
 
@@ -17,22 +15,8 @@ typedef struct {
   int l;
 } Datum;
 
-typedef struct {
-  int a;
-  int b;
-  int c;
-} Counter;
-
 char tmpT[T_LEN+1], tmpS[S_SIZE][S_LEN+1], tmpR[T_LEN+1];
 Datum Tp, S[S_SIZE], R;
-Counter cntTp = {0,0,0}, cntR = {0,0,0};
-
-typedef struct {
-  int a[T_LEN];
-  int b[T_LEN];
-  int c[T_LEN];
-} Map;
-
 
 int main(int argc, char** argv){
 
@@ -55,12 +39,9 @@ int main(int argc, char** argv){
 
 int main_prg(int argc, char** argv){
   /** implement here  **/
-  int i, j, k, cp = -1, cnt = 0, align_num = 0, offset;
-  char pattern[S_LEN];
-  char part[1001];
+  int i, j, cp = -1, cnt = 0;
   FILE* ifp;
   FILE* ofp;
-  highScoreCell = &zero;
 
   if(argc != 3) {
     printf("argument error\n");
@@ -68,11 +49,11 @@ int main_prg(int argc, char** argv){
     exit(1);
   }
 
-  /* ファイルからデータ入力 */
   if((ifp = fopen(argv[1], "r")) == NULL) {
     fprintf(stderr, "failed to open file \"%s\", in read_data.", argv[1]);
     exit(1);
   }
+
   fscanf(ifp, "%s", tmpT);
   Tp.s = tmpT;
   Tp.l = strlen(tmpT);
@@ -85,102 +66,41 @@ int main_prg(int argc, char** argv){
   fclose(ifp);
 
   R.s = tmpR;
-  for(i = 0; i < Tp.l; i++) {
-    R.s[i] = 'x';
-  }
-
-  /* S同士の類似検索 */
-  // for(j = 0; j < S_LEN-PRM+1; j++) {
-  // for(j = 0; j < 1; j++) {
-  //   strncpy(pattern, S[0].s + j, PRM);
-  //   for(i = 0; i < S_SIZE; i++) {
-  //     if(i == 0) continue;
-  //     cp = bitap_search(S[i].s, pattern, 0);
-  //     if(cp != -1) {
-  //       printf("%6d: %s\n", i, S[i].s);
-  //       if(align_num == 0) {
-  //         localAlignment(S[0].s, S[i].s, part);
-  //       } else {
-  //         localAlignment(part, S[i].s, part);
-  //       }
-  //       align_num++;
-  //       printf("%s\n", part);
-  //     }
-  //   }
-  // }
 
   /* bitapによるアラインメント */
   for(i = 0; i < S_SIZE; i++) {
     if(S[i].l == 1) continue;
-    cp = bitap_search(Tp.s, S[i].s, 0);
+    cp = bitap_search(R.s, S[i].s, 1);
+    if(cp == -1) cp = bitap_search(R.s, S[i].s, 2);
+    if(cp == -1) cp = bitap_search(R.s, S[i].s, 3);
     if(cp != -1) {
       S[i].l = 1;
-      // printf("S[%d] = T'[%d]\n", i, cp);
-      /* Rにマッピング */
       for(j = 0; j < S_LEN; j++) {
-        if(R.s[cp+j] == 'x') {
-          R.s[cp+j] = S[i].s[j];
-          Tp.s[cp+j] = 'x';
-        }
+        R.s[cp+j] = S[i].s[j];
+        Tp.s[cp+j] = 'x';
       }
     }
   }
 
-
-  FILE* tmpfp = fopen("dat/dat0_tmp", "w");
-  fprintf(tmpfp, "%s\n", R.s);
-  fclose(tmpfp);
-
-  for(i = 0; i < Tp.l; i++) {
-    if(R.s[i] == 'a') cntR.a++;
-    else if(R.s[i] == 'b') cntR.b++;
-    else if(R.s[i] == 'c') cntR.c++;
-    else {
-      cnt++;
-      R.s[i] = Tp.s[i];
+  /* bitapによるアラインメント */
+  for(i = 0; i < S_SIZE; i++) {
+    if(S[i].l == 1) continue;
+    cp = bitap_search(Tp.s, S[i].s, 4);
+    if(cp != -1) {
+      S[i].l = 1;
+      for(j = 0; j < S_LEN; j++) {
+        R.s[cp+j] = S[i].s[j];
+        Tp.s[cp+j] = 'x';
+      }
     }
   }
-
-  FILE* testfp;
-  testfp = fopen("dat/dat0_tmp", "w");
-  for(i = 0; i < Tp.l; i++) fprintf(testfp, "%d ", m.a[i]);
-  fprintf(testfp, "\n");
-  for(i = 0; i < Tp.l; i++) fprintf(testfp, "%d ", m.b[i]);
-  fprintf(testfp, "\n");
-  for(i = 0; i < Tp.l; i++) fprintf(testfp, "%d ", m.c[i]);
-  fprintf(testfp, "\n");
-  fclose(testfp);
 
   if((ofp = fopen(argv[2], "w")) == NULL) {
     fprintf(stderr, "failed to open file \"%s\", in read_data.", argv[2]);
     exit(1);
   }
-  for(i = 0; i < Tp.l; i++) {
-    maxId = 0;
-    if(i >= 1 && i <= Tp.l-2) {
-      scoreA = m.a[i-1]*2 + m.a[i]*3 + m.a[i+1]*2;
-      scoreB = m.b[i-1]*2 + m.b[i]*3 + m.b[i+1]*2;
-      scoreC = m.c[i-1]*2 + m.c[i]*3 + m.c[i+1]*2;
-    } else {
-      scoreA = m.a[i];
-      scoreB = m.b[i];
-      scoreC = m.c[i];
-    }
-    max = scoreA;
-    if(max < scoreB) {
-      maxId = 1;
-      max = scoreB;
-    }
-    if(max < scoreC) maxId = 2;
-    fprintf(ofp, "%c", 'a' + maxId);
-  }
-  fprintf(ofp, "\n");
+  fprintf(ofp, "%s\n", R.s);
   fclose(ofp);
-  printf("R contents\n");
-  printf("a: %5d\n", cntR.a);
-  printf("b: %5d\n", cntR.b);
-  printf("c: %5d\n", cntR.c);
-  printf("x: %5d\n", cnt);
-  printf("Match: %.3f％\n", (Tp.l-cnt)/(double)Tp.l * 100);
+
   return 0;
 }
