@@ -15,6 +15,10 @@ org_file = open(args[2], 'r')
 test = test_file.read()
 org = org_file.read()
 
+print 'a: %d' % test.count('a')
+print 'b: %d' % test.count('b')
+print 'c: %d' % test.count('c')
+
 start = time.time()
 print(editdistance.eval(org, test))
 elapsed_time = time.time() - start
