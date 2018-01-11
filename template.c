@@ -39,7 +39,7 @@ int main(int argc, char** argv){
 
 int main_prg(int argc, char** argv){
   /** implement here  **/
-  int i, j, cp = -1, cnt = 0;
+  int i, j, cp;
   FILE* ifp;
   FILE* ofp;
 
@@ -66,6 +66,7 @@ int main_prg(int argc, char** argv){
   fclose(ifp);
 
   R.s = tmpR;
+  for(i = 0; i < Tp.l; i++) R.s[i] = Tp.s[i];
 
   /* bitapによるアラインメント */
   for(i = 0; i < S_SIZE; i++) {
