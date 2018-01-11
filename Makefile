@@ -1,5 +1,5 @@
 PROG = grpwk
-OBJS = template.o
+OBJS = template.o bitap.o
 CC = gcc
 CFLAGS = -Wall -O1 -O2
 
