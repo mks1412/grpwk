@@ -7,9 +7,11 @@
 #include <limits.h>
 #include "global.h"
 #include "bitap.h"
+#define PRM 20
 
 int main_prg(int, char**);
 
+/* sは文字列, lはT'では長さ, Sでは使用済みフラグとして利用 */
 typedef struct {
   char* s;
   int l;
@@ -39,9 +41,10 @@ int main(int argc, char** argv){
 
 int main_prg(int argc, char** argv){
   /** implement here  **/
-  int i, j, cp;
+  int i, j, k, cp, cnt1 = 0, cnt2 = 0, cnt3 = 0;
   FILE* ifp;
   FILE* ofp;
+  char pattern[PRM+1];
 
   if(argc != 3) {
     printf("argument error\n");
@@ -70,12 +73,12 @@ int main_prg(int argc, char** argv){
 
   /* bitapによるアラインメント */
   for(i = 0; i < S_SIZE; i++) {
-    if(S[i].l == 1) continue;
     cp = bitap_search(R.s, S[i].s, 1);
     if(cp == -1) cp = bitap_search(R.s, S[i].s, 2);
     if(cp == -1) cp = bitap_search(R.s, S[i].s, 3);
     if(cp != -1) {
-      S[i].l = 1;
+      S[i].l = 1; /* 使用したSはフラグを立てる */
+      cnt1++;
       for(j = 0; j < S_LEN; j++) {
         R.s[cp+j] = S[i].s[j];
         Tp.s[cp+j] = 'x';
@@ -85,9 +88,10 @@ int main_prg(int argc, char** argv){
 
   /* bitapによるアラインメント */
   for(i = 0; i < S_SIZE; i++) {
-    if(S[i].l == 1) continue;
+    if(S[i].l == 1) continue; /* 使用済みSはスキップ */
     cp = bitap_search(Tp.s, S[i].s, 4);
     if(cp != -1) {
+      cnt2++;
       S[i].l = 1;
       for(j = 0; j < S_LEN; j++) {
         R.s[cp+j] = S[i].s[j];
@@ -95,6 +99,32 @@ int main_prg(int argc, char** argv){
       }
     }
   }
+
+  printf("cnt1: %d\n", cnt1);
+  printf("cnt2: %d\n", cnt2);
+
+  for(i = 0; i < S_SIZE; i++) {
+    /* BM法によるマッピング */
+    if(S[i].l == 1) continue; /* 使用済みSはスキップ */
+    for(j = 0; j < S_LEN-PRM; j++) {
+      strncpy(pattern, S[i].s + j, PRM);
+      pattern[PRM] = '\0';
+      cp = bitap_search(Tp.s, pattern, 1);
+      if(cp == -1) continue;
+      printf("S[%d][%d]: T[%d]\n", i, j, cp);
+      cnt3++;
+      for(k = 0; k < PRM; k++) {
+        R.s[cp + k] = pattern[k];
+        Tp.s[cp + k] = 'x';
+      }
+      break;
+     }
+  }
+
+  // for(i = 0; i < S_SIZE; i++) {
+  //   if(S[i].l == 1) cnt++;
+  // }
+  printf("cnt3: %d\n", cnt3);
 
   if((ofp = fopen(argv[2], "w")) == NULL) {
     fprintf(stderr, "failed to open file \"%s\", in read_data.", argv[2]);
